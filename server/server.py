@@ -48,8 +48,8 @@ class Server():
         self.user_info = {
             'admin': 'admin',
         }
-        self.black_list = []
-        self.white_list = []
+        self.black_list = ['192.168.1.103']
+        self.white_list = ['192.168.1.103']
 
         self.FTP_ROOT = '/home/sinlapis/ftproot'
 
@@ -280,7 +280,7 @@ class Server():
                 return 0
             elif command[0:3] == 'max':
                 try:
-                    self.max_conn = int(command[4:])
+                    self.MAX_CONN = int(command[4:])
                 except ValueError:
                     print('<console> Addition error.')
             elif command[0:4] == 'mode':
@@ -310,7 +310,7 @@ class Server():
                     in_white_list = address[0] in self.white_list
                     banned_flag = (self.ban_mode and
                                    (self.is_black_list and in_black_list) or
-                                   ((not self.is_black_list) and in_white_list))
+                                   ((not self.is_black_list) and (not in_white_list)))
                     if self.conn_count < self.MAX_CONN and not banned_flag:
                         self.write(connection, status.welcome)
                         self.cmd_epoll.register(connection.fileno(),
