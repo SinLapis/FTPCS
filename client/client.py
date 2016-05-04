@@ -11,6 +11,7 @@ class Client():
         self.DOWNLOAD_PATH = './download/'
 
     def extract_code(self, receive):
+        print(receive[0:3])
         return receive[0:3]
 
     def extract_message(self, message):
@@ -26,52 +27,64 @@ class Client():
         patten = re.compile(r'.*\((.*)\)')
         result = patten.match(receive).groups()[0]
         port = int(result)
-        return ('127.0.0.1', port)
+        return self.server_addr[0], port
 
     def start(self):
         self.conn_fd.connect(self.server_addr)
-        print(self.conn_fd.recv(1024).decode())
+        first_receive = self.conn_fd.recv(1024).decode()
+        print(first_receive)
+        if first_receive[0:3] == '400':
+            self.conn_fd.close()
+            print('<client> Server denies the connection.')
+            return 0
         while True:
             message = input()
+            command, addition = self.extract_message(message)
+            if command == 'stor':
+                try:
+                    file = open(addition, 'rb')
+                    file.close()
+                except FileNotFoundError:
+                    print('<client> ' + addition + ' is unavailable. Please retry.')
+                    continue
             self.conn_fd.send(message.encode())
             receive = self.conn_fd.recv(1024).decode()
             print(receive)
             if message == 'quit':
                 self.conn_fd.close()
-                print('<client>Client has closed the connection.')
+                print('<client> Client has closed the connection.')
                 break
             return_code = self.extract_code(receive)
-            command, addition = self.extract_message(message)
+            print(return_code)
             if return_code == '150':
                 data_addr = self.extract_address(receive)
                 data_fd = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 if command == 'retr':
-                    file = open(self.DOWNLOAD_PATH + addition, 'w')
+                    file = open(self.DOWNLOAD_PATH + addition, 'wb')
                     data_fd.connect(data_addr)
                     while True:
                         buf = data_fd.recv(1024)
-                        if(len(buf)!=0):
-                            file.write(buf.decode())
+                        if len(buf) != 0:
+                            file.write(buf)
                         else:
                             data_fd.close()
                             break
                     file.close()
                     self.conn_fd.send('retrc'.encode())
                     print(self.conn_fd.recv(1024).decode())
-                    print('<client>' + addition + ' has been downloaded.')
+                    print('<client> ' + addition + ' has been downloaded.')
                 elif command == 'stor':
-                    file = open(addition)
                     data_fd.connect(data_addr)
+                    file = open(addition, 'rb')
                     buf = file.read(1024)
-                    while buf != '':
+                    while len(buf) != 0:
                         data_fd.send(buf)
                         buf = file.read(1024)
                     data_fd.close()
                     file.close()
-                    self.conn_fd.send('storc')
+                    self.conn_fd.send('storc'.encode())
                     print(self.conn_fd.recv(1024).decode())
-                    print('<client>' + addition + ' has been uploaded.')
-
+                    print('<client> ' + addition + ' has been uploaded.')
 
 
 
